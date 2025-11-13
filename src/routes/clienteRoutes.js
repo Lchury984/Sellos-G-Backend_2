@@ -4,7 +4,8 @@ import { protegerRuta } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", protegerRuta, crearCliente);
-router.get("/", obtenerClientes);
+router.post("/", crearCliente); // público
+router.get("/", protegerRuta, soloAdmin, obtenerClientes); // solo admin
+
 
 export default router;

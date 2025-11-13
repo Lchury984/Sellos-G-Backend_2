@@ -1,19 +1,11 @@
-import express from "express";
-import {
-  crearPedido,
-  obtenerPedidos,
-  filtrarPedidos,
-  actualizarPedido,
-  eliminarPedido
-} from "../controllers/pedidoController.js";
-import { protegerRuta } from "../middlewares/authMiddleware.js";
+import { protegerRuta, soloCliente, soloEmpleado } from "../middlewares/authMiddleware.js";
 
-const router = express.Router();
+// Cliente crea y ve sus pedidos
+router.post("/", protegerRuta, soloCliente, crearPedido);
+router.get("/mios", protegerRuta, soloCliente, obtenerPedidos);
 
-router.post("/", protegerRuta, crearPedido);
-router.get("/filtrar", protegerRuta, filtrarPedidos);
-router.get("/", protegerRuta, obtenerPedidos);
-router.put("/:id", protegerRuta, actualizarPedido);
-router.delete("/:id", protegerRuta, eliminarPedido);
-
-export default router;
+// Admin / Empleado gestiona todos los pedidos
+router.get("/", protegerRuta, soloEmpleado, obtenerPedidos);
+router.get("/filtrar", protegerRuta, soloEmpleado, filtrarPedidos);
+router.put("/:id", protegerRuta, soloEmpleado, actualizarPedido);
+router.delete("/:id", protegerRuta, soloEmpleado, eliminarPedido);

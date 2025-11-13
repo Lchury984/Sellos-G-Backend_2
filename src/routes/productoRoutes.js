@@ -7,7 +7,7 @@ import {
   actualizarProducto,
   eliminarProducto
 } from "../controllers/productoController.js";
-import { protegerRuta } from "../middlewares/authMiddleware.js";
+import { protegerRuta, soloEmpleado } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
@@ -17,8 +17,8 @@ router.get("/buscar/:termino", buscarProductos);
 router.get("/:id", obtenerProducto);
 
 // Rutas privadas (Admin / Empleado)
-router.post("/", protegerRuta, crearProducto);
-router.put("/:id", protegerRuta, actualizarProducto);
-router.delete("/:id", protegerRuta, eliminarProducto);
+router.post("/", protegerRuta, soloEmpleado, crearProducto);
+router.put("/:id", protegerRuta, soloEmpleado, actualizarProducto);
+router.delete("/:id", protegerRuta, soloEmpleado, eliminarProducto);
 
 export default router;

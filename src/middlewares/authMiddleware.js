@@ -16,10 +16,27 @@ export const protegerRuta = async (req, res, next) => {
   }
 };
 
-// Middleware adicional para restringir a administradores
+// Middleware para administradores
 export const soloAdmin = (req, res, next) => {
   if (req.usuario.rol !== "administrador") {
     return res.status(403).json({ msg: "Acceso denegado: Solo administradores" });
   }
   next();
 };
+
+// Middleware para empleados
+export const soloEmpleado = (req, res, next) => {
+  if (req.usuario.rol !== "empleado" && req.usuario.rol !== "administrador") {
+    return res.status(403).json({ msg: "Acceso denegado: Solo empleados o administradores" });
+  }
+  next();
+};
+
+// Middleware para clientes autenticados
+export const soloCliente = (req, res, next) => {
+  if (req.usuario.rol !== "cliente") {
+    return res.status(403).json({ msg: "Acceso denegado: Solo clientes" });
+  }
+  next();
+};
+

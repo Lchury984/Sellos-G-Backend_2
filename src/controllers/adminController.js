@@ -1,6 +1,6 @@
 import Usuario from "../models/Usuario.js";
 import Producto from "../models/Producto.js";
-import Pedido from "../models/Pedido.js"; // Usamos Pedido como "Venta"
+import Pedido from "../models/Pedido.js"; 
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { Parser } from "json2csv";

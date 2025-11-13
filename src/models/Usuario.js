@@ -5,7 +5,11 @@ const usuarioSchema = new mongoose.Schema({
   nombre: { type: String, required: true },
   correo: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  rol: { type: String, enum: ["administrador", "empleado", "cliente"], default: "empleado" },
+  rol: { 
+  type: String, 
+  enum: ["administrador", "empleado", "cliente"], 
+  default: "cliente" 
+  },
   tokenRecuperacion: { type: String, default: null },
   expiracionToken: { type: Date, default: null },
 });
