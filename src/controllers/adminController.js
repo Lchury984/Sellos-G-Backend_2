@@ -3,7 +3,7 @@ import Producto from "../models/Producto.js";
 import Pedido from "../models/Pedido.js"; 
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { Parser } from "json2csv";
+//import { Parser } from "json2csv";
 
 // --------------------------
 // LOGIN ADMIN
