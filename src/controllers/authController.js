@@ -18,42 +18,48 @@ export const login = async (req, res) => {
   let rol = null;
 
   try {
-    // 1. Buscar en la colección de ADMINISTRADORES
+    // 1. Buscar ADMIN
     usuario = await Admin.findOne({ correo });
-    if (usuario) {
-      rol = 'administrador';
-    }
+    if (usuario) rol = "administrador";
 
-    // 2. Si no es Admin, buscar en la colección de CLIENTES
+    // 2. Buscar CLIENTE si no es admin
     if (!usuario) {
       usuario = await Cliente.findOne({ correo });
-      if (usuario) {
-        rol = 'cliente';
-      }
+      if (usuario) rol = "cliente";
     }
 
-    // 3. Si el usuario no se encuentra en ninguna colección relevante:
-    if (!usuario) return res.status(404).json({ msg: "Usuario no encontrado" });
+    // 3. Usuario no existe
+    if (!usuario) {
+      return res.status(404).json({ msg: "Usuario no encontrado" });
+    }
 
-    // 4. Comparar la contraseña (Usamos .compararPassword según la asunción)
-    // ⚠️ IMPORTANTE: Asegúrate que este método esté definido en tus modelos (Admin.js y Cliente.js)
+    // 4. VALIDACIÓN CRÍTICA: cliente debe tener correo verificado
+    if (rol === "cliente" && !usuario.verificado) {
+      return res.status(401).json({
+        msg: "Tu cuenta no ha sido verificada. Revisa tu correo electrónico.",
+        necesitaVerificar: true
+      });
+    }
+
+    // 5. Comparar contraseña
     const esValido = await usuario.compararPassword(password);
+    if (!esValido) {
+      return res.status(401).json({ msg: "Contraseña incorrecta" });
+    }
 
-    if (!esValido) return res.status(401).json({ msg: "Contraseña incorrecta" });
-
-    // 5. Generación de Token y Respuesta
+    // 6. Generar JWT
     const token = generarToken(usuario._id, rol);
 
+    // 7. Respuesta final
     res.json({
       msg: "Inicio de sesión exitoso",
       token,
-      rol: rol,
-      // Añadir la información mínima del usuario para el Frontend
+      rol,
       user: {
         id: usuario._id,
         correo: usuario.correo,
-        nombre: usuario.nombre || 'Usuario', // Usar 'Usuario' si no tiene nombre
-        rol: rol
+        nombre: usuario.nombre || "Usuario",
+        rol
       }
     });
 
@@ -62,6 +68,38 @@ export const login = async (req, res) => {
     res.status(500).json({ msg: "Error al iniciar sesión" });
   }
 };
+
+
+export const verificarEmail = async (req, res) => {
+  const { token } = req.body;
+
+  try {
+    const cliente = await Cliente.findOne({
+      verificacionToken: token,
+      verificacionExpira: { $gt: Date.now() }
+    });
+
+    if (!cliente) {
+      return res.status(400).json({
+        message: "Token de verificación inválido o expirado."
+      });
+    }
+
+    cliente.verificado = true;
+    cliente.verificacionToken = null;
+    cliente.verificacionExpira = null;
+
+    await cliente.save();
+
+    res.status(200).json({
+      message: "Correo electrónico verificado con éxito. ¡Ya puedes iniciar sesión!"
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Error en el servidor durante la verificación." });
+  }
+};
+
 
 // ====================================================================
 // --- 2. Recuperación de Contraseña ---
