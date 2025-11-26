@@ -12,7 +12,8 @@ const DEFAULT_ADMIN_CREDENTIALS = {
     nombre: 'Admin',
     apellido: 'Sistema',
     cedula: '9999999999',
-    telefono: '999999999'
+    telefono: '999999999',
+    verificado: true
 };
 
 export const seedDefaultAdmin = async () => {
