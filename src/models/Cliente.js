@@ -49,6 +49,17 @@ const clienteSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    // ✅ Campos para restablecimiento de contraseña
+    resetPasswordToken: {
+      type: String,
+      default: null,
+    },
+    resetPasswordExpira: {
+      type: Date,
+      default: null,
+    },
+
   },
   { timestamps: true }
 );

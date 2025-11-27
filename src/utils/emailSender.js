@@ -7,71 +7,39 @@ dotenv.config();
 const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
+        // Asegúrate de que estas variables de entorno están en tu .env
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     },
 });
 
-export const sendVerificationEmail = async (correo, token, nombre) => {
-    console.log("DEBUG USER:", process.env.EMAIL_USER);
-    console.log("DEBUG PASS:", process.env.EMAIL_PASS);
+export const sendVerificationEmail = async (correo, token, nombre = 'Usuario') => { // ✅ Mejorado: nombre por defecto
+    // console.log("DEBUG USER:", process.env.EMAIL_USER);
+    // console.log("DEBUG PASS:", process.env.EMAIL_PASS);
 
     const verificationLink = `${process.env.FRONTEND_URL}/verificar-email?token=${token}`;
+
+    // Usamos el mismo estilo HTML (simplificado para incluir el CSS en línea)
     const htmlContent = `
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bienvenido</title>
-
+    <title>Verificación de Cuenta</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f7fa;
-            padding: 0;
-            margin: 0;
-        }
-        .container {
-            max-width: 480px;
-            background: white;
-            margin: 40px auto;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-        }
-        h1 {
-            color: #001f3f;
-            text-align: center;
-        }
-        p {
-            font-size: 15px;
-            color: #333;
-            line-height: 1.6;
-        }
-        .btn {
-            display: block;
-            text-align: center;
-            background: #001f3f;
-            color: white !important;
-            padding: 12px;
-            border-radius: 10px;
-            text-decoration: none;
-            font-weight: bold;
-            margin: 25px 0;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 25px;
-            color: #777;
-            font-size: 13px;
-        }
+        body { font-family: Arial, sans-serif; background: #f5f7fa; padding: 0; margin: 0; }
+        .container { max-width: 480px; background: white; margin: 40px auto; border-radius: 12px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+        h1 { color: #001f3f; text-align: center; }
+        p { font-size: 15px; color: #333; line-height: 1.6; }
+        .btn { display: block; text-align: center; background: #001f3f; color: white !important; padding: 12px; border-radius: 10px; text-decoration: none; font-weight: bold; margin: 25px 0; }
+        .footer { text-align: center; margin-top: 25px; color: #777; font-size: 13px; }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <h1>Bienvenido, ${nombre}</h1>
+        <h1>Bienvenido, ${nombre || 'Usuario'}</h1>
 
         <p>Tu cuenta ha sido creada con éxito. Solo falta verificar tu correo.</p>
 
@@ -96,10 +64,72 @@ export const sendVerificationEmail = async (correo, token, nombre) => {
             html: htmlContent,
         });
 
-        console.log("Correo enviado:", info.messageId);
+        console.log("Correo de verificación enviado:", info.messageId);
         return info;
     } catch (error) {
-        console.error("Error enviando correo:", error);
+        console.error("Error enviando correo de verificación:", error);
         throw new Error("Fallo al enviar el correo de verificación.");
+    }
+};
+
+/**
+ * Envía el correo para restablecer la contraseña.
+ * @param {string} correo - Correo del destinatario.
+ * @param {string} token - Token de recuperación generado.
+ * @param {string} nombre - Nombre del usuario.
+ */
+export const sendPasswordResetEmail = async (correo, token, nombre = 'Usuario') => { // ✅ Mejorado: nombre por defecto
+    // El enlace debe apuntar a la página de restablecimiento del frontend
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password/${token}`;
+
+    // ✅ Mejorado: Usamos el mismo diseño HTML para consistencia
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Restablecer Contraseña</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f7fa; padding: 0; margin: 0; }
+        .container { max-width: 480px; background: white; margin: 40px auto; border-radius: 12px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+        h1 { color: #001f3f; text-align: center; }
+        p { font-size: 15px; color: #333; line-height: 1.6; }
+        .btn { display: block; text-align: center; background: #001f3f; color: white !important; padding: 12px; border-radius: 10px; text-decoration: none; font-weight: bold; margin: 25px 0; }
+        .footer { text-align: center; margin-top: 25px; color: #777; font-size: 13px; }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Hola, ${nombre || 'Usuario'}</h1>
+
+        <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta Sellos-G.</p>
+        <p>Haz clic en el siguiente botón para continuar:</p>
+
+        <a class="btn" href="${resetLink}">Restablecer Contraseña</a>
+
+        <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
+
+        <p class="footer">
+            © 2025 Sellos G — Sistema de Gestión
+        </p>
+    </div>
+</body>
+</html>
+    `;
+
+    try {
+        await transporter.sendMail({
+            from: '"Sellos G (No Responder)" <no-reply@sellos-g.com>',
+            to: correo,
+            subject: "Restablecimiento de Contraseña - Sellos-G",
+            html: htmlContent,
+        });
+        console.log(`[EMAIL] Correo de restablecimiento enviado a ${correo}.`);
+    } catch (error) {
+        console.error("Error enviando correo de restablecimiento:", error);
+        // Lanzamos un error explícito para que el controlador lo capture y devuelva el 500
+        throw new Error("Fallo al enviar el correo de restablecimiento.");
     }
 };

@@ -12,8 +12,8 @@ const router = express.Router();
 
 router.post("/login", login);
 router.post('/verify-email', verificarEmail);
-router.post("/recuperar", solicitarRecuperacion);
-router.patch("/restablecer/:token", restablecerContraseña);
+router.post("/forgot-password", solicitarRecuperacion);
+router.patch("/reset-password/:token", restablecerContraseña);
 router.patch("/actualizar", protegerRuta, actualizarContraseña);
 
 export default router;

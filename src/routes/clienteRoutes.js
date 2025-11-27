@@ -1,5 +1,8 @@
 import express from "express";
-import { registrarCliente, obtenerClientes } from "../controllers/clienteController.js";
+import { 
+    registrarCliente, 
+    obtenerClientes, 
+} from "../controllers/clienteController.js";
 import { protegerRuta, soloAdmin } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
@@ -12,6 +15,7 @@ router.post("/register", registrarCliente);
 
 // Ruta protegida para obtener todos los clientes
 router.get("/", protegerRuta, soloAdmin, obtenerClientes); // solo admin
+
 
 
 export default router;

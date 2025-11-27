@@ -4,6 +4,12 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs"; // Necesario para hashear si se actualiza la contraseña
 import nodemailer from "nodemailer"; // Necesario para la recuperación de contraseña
 
+// 🚀 CORRECCIÓN 1: Importar randomBytes directamente de 'crypto'
+import { randomBytes } from 'crypto';
+
+// 🚀 CORRECCIÓN 2: Importar la utilidad de envío de correo (Buenas Prácticas)
+import { sendPasswordResetEmail } from '../utils/emailSender.js';
+
 // Función auxiliar para generar JWT
 const generarToken = (id, rol) => {
   return jwt.sign({ id, rol }, process.env.JWT_SECRET, { expiresIn: "1d" });
@@ -106,35 +112,34 @@ export const verificarEmail = async (req, res) => {
 // ====================================================================
 export const solicitarRecuperacion = async (req, res) => {
   const { correo } = req.body;
-  try {
-    // ⚠️ Para la recuperación, idealmente debes buscar en TODOS los modelos (Admin, Cliente)
-    const usuario = await Admin.findOne({ correo }) || await Cliente.findOne({ correo });
-    if (!usuario) return res.status(404).json({ msg: "Correo no registrado" });
 
-    const token = jwt.sign({ id: usuario._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
-    // ⚠️ Asegúrate de que el modelo Mongoose tenga los campos tokenRecuperacion y expiracionToken
-    usuario.tokenRecuperacion = token;
-    usuario.expiracionToken = Date.now() + 3600000;
+  try {
+    let usuario =
+      await Admin.findOne({ correo }) ||
+      await Cliente.findOne({ correo });
+
+    // Por seguridad: Siempre respondemos igual
+    if (!usuario) {
+      return res.json({ msg: "Si el correo existe, enviaremos instrucciones." });
+    }
+
+    // Usando randomBytes importado correctamente
+    const token = randomBytes(32).toString("hex");
+    const expiration = Date.now() + 3600000;
+
+    usuario.resetPasswordToken = token;
+    usuario.resetPasswordExpira = expiration;
     await usuario.save();
 
-    // Configuración del correo
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-    });
+    // 🚀 CORRECCIÓN 3: Usar la función de utilidad para enviar el correo
+    const nombreUsuario = usuario.nombre || 'Usuario';
+    await sendPasswordResetEmail(usuario.correo, token, nombreUsuario);
 
-    const enlace = `http://localhost:3000/api/auth/restablecer/${token}`;
-    await transporter.sendMail({
-      to: usuario.correo,
-      subject: "Recuperación de contraseña",
-      html: `<p>Para restablecer tu contraseña haz clic en el siguiente enlace:</p>
-             <a href="${enlace}">${enlace}</a>`,
-    });
 
-    res.json({ msg: "Correo de recuperación enviado" });
-  } catch (error) {
-    console.error("Error al solicitar recuperación:", error);
-    res.status(500).json({ msg: "Error al procesar la solicitud" });
+    res.json({ msg: "Correo enviado." });
+  } catch (e) {
+    console.error("Error al solicitar recuperación:", e);
+    res.status(500).json({ msg: "Error interno" });
   }
 };
 
@@ -144,29 +149,37 @@ export const solicitarRecuperacion = async (req, res) => {
 export const restablecerContraseña = async (req, res) => {
   const { token } = req.params;
   const { nuevaContraseña } = req.body;
+
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // Buscar en Admin y Cliente, ya que no sabemos qué tipo de usuario es
-    let usuario = await Admin.findById(decoded.id);
+    let usuario = await Admin.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpira: { $gt: Date.now() }
+    });
+
     if (!usuario) {
-      usuario = await Cliente.findById(decoded.id);
+      usuario = await Cliente.findOne({
+        resetPasswordToken: token,
+        resetPasswordExpira: { $gt: Date.now() }
+      });
     }
 
-    if (!usuario || usuario.tokenRecuperacion !== token || usuario.expiracionToken < Date.now())
+    if (!usuario) {
       return res.status(400).json({ msg: "Token inválido o expirado" });
+    }
 
-    // ⚠️ Asumimos que el campo en el modelo es 'password' y Mongoose lo hashea antes de guardar
     usuario.password = nuevaContraseña;
-    usuario.tokenRecuperacion = null;
-    usuario.expiracionToken = null;
+    usuario.resetPasswordToken = undefined;
+    usuario.resetPasswordExpira = undefined;
+
     await usuario.save();
 
-    res.json({ msg: "Contraseña actualizada correctamente" });
-  } catch (error) {
-    console.error("Error al restablecer contraseña:", error);
-    res.status(500).json({ msg: "Error al restablecer la contraseña" });
+    return res.json({ msg: "Contraseña actualizada" });
+  } catch (e) {
+    console.log(e);
+    res.status(500).json({ msg: "Error interno" });
   }
 };
+
 
 // ====================================================================
 // --- 4. Actualizar Contraseña (Desde perfil, requiere autenticación) ---
