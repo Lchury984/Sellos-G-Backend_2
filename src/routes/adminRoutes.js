@@ -5,13 +5,13 @@ import {
   updateAdmin,
   deleteAdmin,
   loginAdmin,
-  listarUsuarios,
-  actualizarUsuario,
-  eliminarUsuario,
+  listarEmpleados,
+  crearEmpleado,
+  actualizarEmpleado,
+  eliminarEmpleado,
   generarReporteVentas,
   generarReporteUsuarios,
   exportarReporteCSV,
-  crearEmpleado
 } from "../controllers/adminController.js";
 
 import { protegerRuta, soloAdmin } from "../middlewares/authMiddleware.js";
@@ -21,17 +21,15 @@ const router = express.Router();
 // ADMINISTRADORES
 router.get("/", protegerRuta, soloAdmin, getAdmins);
 router.post("/", protegerRuta, soloAdmin, createAdmin);
-router.post("/empleados", protegerRuta, soloAdmin, crearEmpleado);
 router.put("/:id", protegerRuta, soloAdmin, updateAdmin);
 router.delete("/:id", protegerRuta, soloAdmin, deleteAdmin);
 router.post("/login", loginAdmin);
 
-
-
-// GESTIÓN DE USUARIOS
-router.get("/usuarios", protegerRuta, soloAdmin, listarUsuarios);
-router.put("/usuarios/:id", protegerRuta, soloAdmin, actualizarUsuario);
-router.delete("/usuarios/:id", protegerRuta, soloAdmin, eliminarUsuario);
+// GESTIÓN DE EMPLEADOS
+router.get("/empleados", protegerRuta, soloAdmin, listarEmpleados);
+router.post("/empleados", protegerRuta, soloAdmin, crearEmpleado);
+router.put("/empleados/:id", protegerRuta, soloAdmin, actualizarEmpleado);
+router.delete("/empleados/:id", protegerRuta, soloAdmin, eliminarEmpleado);
 
 // REPORTES
 router.get("/reportes/ventas", protegerRuta, soloAdmin, generarReporteVentas);

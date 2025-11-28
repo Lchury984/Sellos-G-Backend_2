@@ -1,5 +1,9 @@
 import jwt from "jsonwebtoken";
-import Usuario from "../models/Usuario.js";
+import Admin from "../models/Admin.js";
+import Empleado from "../models/Empleado.js";
+import Cliente from "../models/Cliente.js";
+
+
 
 // Middleware general para verificar token
 export const protegerRuta = async (req, res, next) => {
@@ -8,11 +12,28 @@ export const protegerRuta = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.usuario = await Usuario.findById(decoded.id).select("-password");
+    const userId = decoded.id;
+    let usuario;
+
+    // 1. Intentar buscar en Administradores
+    usuario = await Admin.findById(userId).select("-password");
+
+    // 2. Si no se encuentra, buscar en Empleados
+    if (!usuario) {
+      usuario = await Empleado.findById(userId).select("-password");
+    }
+
+    // 3. Si no se encuentra, buscar en Clientes
+    if (!usuario) {
+      usuario = await Cliente.findById(userId).select("-password");
+    }
+
+    req.usuario = usuario;
+
     if (!req.usuario) return res.status(404).json({ msg: "Usuario no encontrado" });
     next();
-  } catch {
-    res.status(401).json({ msg: "Token inválido o expirado" });
+  } catch (error) {
+    return res.status(401).json({ msg: "Token inválido o expirado" });
   }
 };
 

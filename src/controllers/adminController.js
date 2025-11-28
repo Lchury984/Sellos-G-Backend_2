@@ -1,9 +1,12 @@
-import Usuario from "../models/Usuario.js";
+import Admin from "../models/Admin.js";
+import Empleado from "../models/Empleado.js"; // ← Importar Empleado
+import Cliente from "../models/Cliente.js";   // ← Importar Cliente
 import Producto from "../models/Producto.js";
-import Pedido from "../models/Pedido.js"; 
+import Pedido from "../models/Pedido.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-//import { Parser } from "json2csv";
+import crypto from "crypto";
+import { sendEmployeeWelcomeEmail } from '../utils/emailSender.js';
 
 // --------------------------
 // LOGIN ADMIN
@@ -11,32 +14,38 @@ import jwt from "jsonwebtoken";
 export const loginAdmin = async (req, res) => {
   const { correo, password } = req.body;
 
-  const admin = await Usuario.findOne({ correo });
+  const admin = await Admin.findOne({ correo });
   if (!admin) return res.status(404).json({ msg: "Administrador no encontrado" });
-  if (admin.rol !== "administrador") return res.status(403).json({ msg: "Acceso no autorizado" });
 
-  const passwordValida = await bcrypt.compare(password, admin.password);
+  const passwordValida = await admin.compararPassword(password);
   if (!passwordValida) return res.status(401).json({ msg: "Contraseña incorrecta" });
 
-  const token = jwt.sign({ id: admin._id }, process.env.JWT_SECRET, { expiresIn: "2h" });
-  res.json({ msg: "Login exitoso", token });
+  const token = jwt.sign({ id: admin._id, rol: 'administrador' }, process.env.JWT_SECRET, { expiresIn: "2h" });
+  res.json({ msg: "Login exitoso", token, rol: 'administrador' });
 };
 
 // --------------------------
 // CRUD ADMINISTRADORES
 // --------------------------
 export const getAdmins = async (req, res) => {
-  const admins = await Usuario.find({ rol: "administrador" }).select("-password");
+  const admins = await Admin.find().select("-password");
   res.json(admins);
 };
 
 export const createAdmin = async (req, res) => {
-  const { nombre, correo, password } = req.body;
+  const { nombre, apellido, cedula, telefono, correo, password } = req.body;
 
-  const existe = await Usuario.findOne({ correo });
+  const existe = await Admin.findOne({ correo });
   if (existe) return res.status(400).json({ msg: "El correo ya está registrado" });
 
-  const nuevoAdmin = new Usuario({ nombre, correo, password, rol: "administrador" });
+  const nuevoAdmin = new Admin({
+    nombre,
+    apellido,
+    cedula,
+    telefono,
+    correo,
+    password
+  });
   await nuevoAdmin.save();
 
   res.status(201).json({ msg: "Administrador creado", nuevoAdmin });
@@ -44,9 +53,14 @@ export const createAdmin = async (req, res) => {
 
 export const updateAdmin = async (req, res) => {
   const { id } = req.params;
-  const { nombre, correo } = req.body;
+  const { nombre, apellido, cedula, telefono, correo } = req.body;
 
-  const actualizado = await Usuario.findByIdAndUpdate(id, { nombre, correo }, { new: true });
+  const actualizado = await Admin.findByIdAndUpdate(
+    id,
+    { nombre, apellido, cedula, telefono, correo },
+    { new: true }
+  ).select("-password");
+
   if (!actualizado) return res.status(404).json({ msg: "Administrador no encontrado" });
 
   res.json({ msg: "Administrador actualizado", actualizado });
@@ -54,48 +68,130 @@ export const updateAdmin = async (req, res) => {
 
 export const deleteAdmin = async (req, res) => {
   const { id } = req.params;
-  const eliminado = await Usuario.findByIdAndDelete(id);
+  const eliminado = await Admin.findByIdAndDelete(id);
   if (!eliminado) return res.status(404).json({ msg: "Administrador no encontrado" });
   res.json({ msg: "Administrador eliminado correctamente" });
 };
 
 // --------------------------
-// GESTIÓN DE USUARIOS
+// GESTIÓN DE EMPLEADOS
 // --------------------------
-export const listarUsuarios = async (req, res) => {
-  const usuarios = await Usuario.find({ rol: "empleado" }).select("-password");
-  res.json(usuarios);
-};
-
-export const actualizarUsuario = async (req, res) => {
-  const { id } = req.params;
-  const { nombre, correo, rol } = req.body;
-
-  const usuarioActualizado = await Usuario.findByIdAndUpdate(id, { nombre, correo, rol }, { new: true });
-  if (!usuarioActualizado) return res.status(404).json({ msg: "Usuario no encontrado" });
-
-  res.json({ msg: "Usuario actualizado", usuarioActualizado });
-};
-
-export const eliminarUsuario = async (req, res) => {
-  const { id } = req.params;
-  const eliminado = await Usuario.findByIdAndDelete(id);
-  if (!eliminado) return res.status(404).json({ msg: "Usuario no encontrado" });
-  res.json({ msg: "Usuario eliminado correctamente" });
+export const listarEmpleados = async (req, res) => {
+  try {
+    const empleados = await Empleado.find().select("-password");
+    res.json(empleados);
+  } catch (error) {
+    res.status(500).json({ msg: "Error al listar empleados", error: error.message });
+  }
 };
 
 export const crearEmpleado = async (req, res) => {
   try {
-    const nuevoEmpleado = new Usuario({
-      nombre: req.body.nombre,
-      correo: req.body.correo,
-      password: req.body.password,
+    const { nombre, correo, edad } = req.body;
+
+    // Verificar si ya existe
+    const existeEmpleado = await Empleado.findOne({ correo });
+    if (existeEmpleado) {
+      return res.status(400).json({ msg: "El correo ya está registrado como empleado" });
+    }
+
+    const existeCliente = await Cliente.findOne({ correo });
+    if (existeCliente) {
+      return res.status(400).json({ msg: "El correo ya está registrado como cliente" });
+    }
+
+    // Usar la contraseña que proporciona el administrador en el formulario
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ msg: 'Debe proporcionar una contraseña para el empleado.' });
+    }
+
+    // Generar token de verificación y expiración (1 hora)
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiration = Date.now() + 3600000; // 1 hora
+
+    // Crear empleado no verificado; el correo de verificación será enviado
+    const nuevoEmpleado = new Empleado({
+      nombre,
+      correo,
+      password,
+      edad: edad || null,
       rol: "empleado",
+      verificado: false,
+      verificacionToken: token,
+      verificacionExpira: expiration,
     });
+
     await nuevoEmpleado.save();
-    res.status(201).json(nuevoEmpleado);
+
+    // Enviar correo de bienvenida/verificación (NO incluimos la contraseña por seguridad)
+    try {
+      await sendEmployeeWelcomeEmail(correo, token, nombre);
+    } catch (emailError) {
+      console.error('Error enviando correo de bienvenida:', emailError);
+      return res.status(201).json({
+        msg: 'Empleado creado, pero no se pudo enviar el correo de verificación. Revisar logs.',
+        empleado: {
+          id: nuevoEmpleado._id,
+          nombre: nuevoEmpleado.nombre,
+          correo: nuevoEmpleado.correo,
+          rol: nuevoEmpleado.rol,
+          edad: nuevoEmpleado.edad,
+          verificado: nuevoEmpleado.verificado,
+        }
+      });
+    }
+
+    res.status(201).json({
+      msg: "Empleado creado exitosamente; correo de verificación enviado",
+      empleado: {
+        id: nuevoEmpleado._id,
+        nombre: nuevoEmpleado.nombre,
+        correo: nuevoEmpleado.correo,
+        rol: nuevoEmpleado.rol,
+        edad: nuevoEmpleado.edad,
+        verificado: nuevoEmpleado.verificado,
+      }
+    });
   } catch (error) {
-    res.status(400).json({ msg: "Error al crear empleado", error });
+    console.error("Error al crear empleado:", error);
+    res.status(400).json({ msg: "Error al crear empleado", error: error.message });
+  }
+};
+
+export const actualizarEmpleado = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, correo, edad } = req.body;
+
+    const empleadoActualizado = await Empleado.findByIdAndUpdate(
+      id,
+      { nombre, correo, edad },
+      { new: true }
+    ).select("-password");
+
+    if (!empleadoActualizado) {
+      return res.status(404).json({ msg: "Empleado no encontrado" });
+    }
+
+    res.json({ msg: "Empleado actualizado", empleado: empleadoActualizado });
+  } catch (error) {
+    res.status(500).json({ msg: "Error al actualizar empleado", error: error.message });
+  }
+};
+
+export const eliminarEmpleado = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const eliminado = await Empleado.findByIdAndDelete(id);
+
+    if (!eliminado) {
+      return res.status(404).json({ msg: "Empleado no encontrado" });
+    }
+
+    res.json({ msg: "Empleado eliminado correctamente" });
+  } catch (error) {
+    res.status(500).json({ msg: "Error al eliminar empleado", error: error.message });
   }
 };
 
@@ -104,14 +200,12 @@ export const crearEmpleado = async (req, res) => {
 // --------------------------
 export const generarReporteVentas = async (req, res) => {
   try {
-    // Obtenemos todos los pedidos (ventas)
     const pedidos = await Pedido.find()
       .populate("cliente", "nombre correo")
       .populate("productos.producto", "nombre precio");
 
     if (!pedidos.length) return res.json({ msg: "No hay ventas registradas" });
 
-    // Calcular totales
     const totalVentas = pedidos.reduce((sum, p) => sum + (p.total || 0), 0);
     const cantidadPedidos = pedidos.length;
 
@@ -127,15 +221,19 @@ export const generarReporteVentas = async (req, res) => {
 
 export const generarReporteUsuarios = async (req, res) => {
   try {
-    const usuarios = await Usuario.find().select("nombre correo rol");
-    const totalAdmins = usuarios.filter(u => u.rol === "administrador").length;
-    const totalEmpleados = usuarios.filter(u => u.rol === "empleado").length;
+    const [admins, empleados, clientes] = await Promise.all([
+      Admin.find().select("nombre correo"),
+      Empleado.find().select("nombre correo rol edad verificado"),
+      Cliente.find().select("nombre correo rol edad verificado"),
+    ]);
 
     res.json({
-      totalUsuarios: usuarios.length,
-      totalAdmins,
-      totalEmpleados,
-      usuarios,
+      totalAdmins: admins.length,
+      totalEmpleados: empleados.length,
+      totalClientes: clientes.length,
+      admins,
+      empleados,
+      clientes,
     });
   } catch (error) {
     res.status(500).json({ msg: error.message });
@@ -145,8 +243,15 @@ export const generarReporteUsuarios = async (req, res) => {
 // Exportar reporte de usuarios a CSV
 export const exportarReporteCSV = async (req, res) => {
   try {
-    const usuarios = await Usuario.find().select("nombre correo rol");
-    const parser = new Parser({ fields: ["nombre", "correo", "rol"] });
+    const [empleados, clientes] = await Promise.all([
+      Empleado.find().select("nombre correo rol edad"),
+      Cliente.find().select("nombre correo rol edad"),
+    ]);
+
+    const usuarios = [...empleados, ...clientes];
+
+    // Aquí podrías usar una librería como json2csv
+    const parser = new Parser({ fields: ["nombre", "correo", "rol", "edad"] });
     const csv = parser.parse(usuarios);
 
     res.header("Content-Type", "text/csv");

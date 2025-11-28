@@ -53,3 +53,37 @@ export const obtenerClientes = async (req, res) => {
     res.status(500).json({ message: "Error al obtener clientes", error });
   }
 };
+
+// Actualizar cliente (solo admin)
+export const actualizarCliente = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, correo, edad } = req.body;
+
+    const actualizado = await Cliente.findByIdAndUpdate(
+      id,
+      { nombre, correo, edad },
+      { new: true }
+    ).select('-password');
+
+    if (!actualizado) return res.status(404).json({ msg: 'Cliente no encontrado' });
+
+    res.json({ msg: 'Cliente actualizado', cliente: actualizado });
+  } catch (error) {
+    console.error('Error al actualizar cliente:', error);
+    res.status(500).json({ msg: 'Error al actualizar cliente', error: error.message });
+  }
+};
+
+// Eliminar cliente (solo admin)
+export const eliminarCliente = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const eliminado = await Cliente.findByIdAndDelete(id);
+    if (!eliminado) return res.status(404).json({ msg: 'Cliente no encontrado' });
+    res.json({ msg: 'Cliente eliminado correctamente' });
+  } catch (error) {
+    console.error('Error al eliminar cliente:', error);
+    res.status(500).json({ msg: 'Error al eliminar cliente', error: error.message });
+  }
+};
