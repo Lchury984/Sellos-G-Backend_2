@@ -12,6 +12,7 @@ import {
   generarReporteVentas,
   generarReporteUsuarios,
   exportarReporteCSV,
+  updateAdminProfile,
 } from "../controllers/adminController.js";
 
 import { protegerRuta, soloAdmin } from "../middlewares/authMiddleware.js";
@@ -24,6 +25,7 @@ router.post("/", protegerRuta, soloAdmin, createAdmin);
 router.put("/:id", protegerRuta, soloAdmin, updateAdmin);
 router.delete("/:id", protegerRuta, soloAdmin, deleteAdmin);
 router.post("/login", loginAdmin);
+router.patch("/me", protegerRuta, soloAdmin, updateAdminProfile);
 
 // GESTIÓN DE EMPLEADOS
 router.get("/empleados", protegerRuta, soloAdmin, listarEmpleados);

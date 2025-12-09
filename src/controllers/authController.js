@@ -221,13 +221,16 @@ export const restablecerContraseña = async (req, res) => {
 // ====================================================================
 // --- 4. Actualizar Contraseña (Desde perfil, requiere autenticación) ---
 // ====================================================================
-export const actualizarContraseña = async (req, res) => { // ⬅️ FUNCIÓN FALTANTE
-  const { contraseñaActual, nuevaContraseña } = req.body;
+export const actualizarContraseña = async (req, res) => {
+  const currentPassword = req.body?.contraseñaActual || req.body?.currentPassword;
+  const newPassword = req.body?.nuevaContraseña || req.body?.newPassword;
 
-  // El middleware `protegerRuta` adjunta la información del usuario a req.usuario
-  const userId = req.usuario.id;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ msg: "Datos incompletos" });
+  }
 
-  // Buscar el usuario en Admin o Cliente
+  const userId = req.usuario?.id || req.usuario?._id;
+
   let usuario = await Admin.findById(userId);
   let rol = 'administrador';
 
@@ -238,15 +241,13 @@ export const actualizarContraseña = async (req, res) => { // ⬅️ FUNCIÓN FA
 
   if (!usuario) return res.status(404).json({ msg: "Usuario no encontrado." });
 
-  // Usamos el método de comparación definido en el modelo
-  const coincide = await usuario.compararPassword(contraseñaActual);
+  const coincide = await usuario.compararPassword(currentPassword);
   if (!coincide) return res.status(400).json({ msg: "La contraseña actual es incorrecta" });
 
-  // ⚠️ Asumimos que el campo es 'password' y Mongoose lo hashea
-  usuario.password = nuevaContraseña;
+  usuario.password = newPassword; // se hashea en el pre('save')
   await usuario.save();
 
-  res.json({ msg: "Contraseña actualizada" });
+  res.json({ msg: "Contraseña actualizada", rol });
 };
 
 // Endpoint de ayuda para enviar un correo de verificación de prueba (solo en development)

@@ -74,6 +74,52 @@ export const deleteAdmin = async (req, res) => {
 };
 
 // --------------------------
+// PERFIL PROPIO DE ADMIN
+// --------------------------
+export const updateAdminProfile = async (req, res) => {
+  try {
+    const adminId = req.usuario?._id || req.usuario?.id;
+    const { nombre, correo } = req.body;
+
+    if (!adminId) {
+      return res.status(401).json({ msg: "No autorizado" });
+    }
+
+    const admin = await Admin.findById(adminId);
+    if (!admin) {
+      return res.status(404).json({ msg: "Administrador no encontrado" });
+    }
+
+    if (correo && correo !== admin.correo) {
+      const existing = await Admin.findOne({ correo });
+      if (existing && existing._id.toString() !== adminId.toString()) {
+        return res.status(409).json({ msg: "El correo ya está registrado" });
+      }
+      admin.correo = correo;
+    }
+
+    if (nombre) {
+      admin.nombre = nombre;
+    }
+
+    await admin.save();
+
+    return res.json({
+      msg: "Perfil actualizado",
+      admin: {
+        id: admin._id,
+        nombre: admin.nombre,
+        correo: admin.correo,
+        rol: admin.rol || "administrador",
+      },
+    });
+  } catch (error) {
+    console.error("Error al actualizar perfil de admin:", error);
+    return res.status(500).json({ msg: "Error al actualizar perfil" });
+  }
+};
+
+// --------------------------
 // GESTIÓN DE EMPLEADOS
 // --------------------------
 export const listarEmpleados = async (req, res) => {

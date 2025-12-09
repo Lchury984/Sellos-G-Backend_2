@@ -87,3 +87,56 @@ export const eliminarCliente = async (req, res) => {
     res.status(500).json({ msg: 'Error al eliminar cliente', error: error.message });
   }
 };
+
+// Actualizar perfil propio (cliente autenticado)
+export const actualizarPerfilCliente = async (req, res) => {
+  try {
+    const clienteId = req.usuario?._id || req.usuario?.id;
+    if (!clienteId) return res.status(401).json({ msg: 'No autorizado' });
+
+    const { nombre, correo, password } = req.body;
+
+    const cliente = await Cliente.findById(clienteId);
+    if (!cliente) return res.status(404).json({ msg: 'Cliente no encontrado' });
+
+    const emailChanged = correo && correo !== cliente.correo;
+
+    if (emailChanged) {
+      const existente = await Cliente.findOne({ correo });
+      if (existente && existente._id.toString() !== clienteId.toString()) {
+        return res.status(409).json({ msg: 'El correo ya está registrado.' });
+      }
+      cliente.correo = correo;
+      cliente.verificado = false;
+      cliente.verificacionToken = crypto.randomBytes(32).toString('hex');
+      cliente.verificacionExpira = Date.now() + 3600000; // 1h
+    }
+
+    if (nombre) cliente.nombre = nombre;
+    if (password) cliente.password = password; // se hashea en pre('save')
+    await cliente.save();
+
+    if (emailChanged) {
+      await sendVerificationEmail(
+        cliente.correo,
+        cliente.verificacionToken,
+        cliente.nombre || 'Usuario'
+      );
+    }
+
+    return res.json({
+      msg: 'Perfil actualizado',
+      necesitaVerificar: emailChanged,
+      user: {
+        id: cliente._id,
+        nombre: cliente.nombre,
+        correo: cliente.correo,
+        rol: cliente.rol,
+        verificado: cliente.verificado,
+      },
+    });
+  } catch (error) {
+    console.error('Error al actualizar perfil de cliente:', error);
+    res.status(500).json({ msg: 'Error al actualizar perfil', error: error.message });
+  }
+};
