@@ -6,6 +6,11 @@ const pedidoSchema = new mongoose.Schema({
     ref: "Cliente",
     required: true
   },
+  empleadoAsignado: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Empleado",
+    default: null
+  },
   productos: [{
     producto: {
       type: mongoose.Schema.Types.ObjectId,
@@ -16,6 +21,10 @@ const pedidoSchema = new mongoose.Schema({
       type: Number,
       required: true,
       min: 1
+    },
+    precioUnitario: {
+      type: Number,
+      required: true
     },
     subtotal: {
       type: Number,
@@ -28,16 +37,25 @@ const pedidoSchema = new mongoose.Schema({
   },
   estado: {
     type: String,
-    enum: ["Pendiente", "En proceso", "Entregado", "Cancelado"],
-    default: "Pendiente"
+    enum: ["pendiente", "en proceso", "completado", "cancelado"],
+    default: "pendiente"
+  },
+  notaEmpleado: {
+    type: String,
+    default: ""
   },
   fechaEntrega: {
     type: Date,
+    default: null
+  },
+  creadoPor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Admin",
     default: null
   }
 }, { timestamps: true });
 
 pedidoSchema.index({ cliente: 1, estado: 1 });
-
+pedidoSchema.index({ empleadoAsignado: 1, estado: 1 });
 
 export default mongoose.model("Pedido", pedidoSchema);

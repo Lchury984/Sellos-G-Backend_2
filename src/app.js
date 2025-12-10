@@ -5,6 +5,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import productoRoutes from "./routes/productoRoutes.js";
 import pedidoRoutes from "./routes/pedidoRoutes.js";
 import clienteRoutes from "./routes/clienteRoutes.js";
+import empleadoRoutes from "./routes/empleadoRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 
 
@@ -19,6 +20,7 @@ app.use("/api/admins", adminRoutes);
 app.use("/api/productos", productoRoutes);
 app.use("/api/pedidos", pedidoRoutes);
 app.use("/api/clientes", clienteRoutes);
+app.use("/api/empleados", empleadoRoutes);
 app.use("/api/auth", authRoutes);
 
 export default app;

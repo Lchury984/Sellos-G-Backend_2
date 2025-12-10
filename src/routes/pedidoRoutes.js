@@ -1,17 +1,29 @@
-import { protegerRuta, soloCliente, soloEmpleado } from "../middlewares/authMiddleware.js";
-import { crearPedido, obtenerPedidos, filtrarPedidos, actualizarPedido, eliminarPedido } from "../controllers/pedidoController.js";
+import { protegerRuta, soloAdmin, soloEmpleado } from "../middlewares/authMiddleware.js";
+import { 
+  crearPedido, 
+  obtenerPedidos, 
+  obtenerPedidosEmpleado,
+  actualizarPedido, 
+  actualizarEstadoPedido,
+  eliminarPedido,
+  obtenerMisPedidos
+} from "../controllers/pedidoController.js";
 import express from "express";
 
 const router = express.Router();
 
-// Cliente crea y ve sus pedidos
-router.post("/", protegerRuta, soloCliente, crearPedido);
-router.get("/mios", protegerRuta, soloCliente, obtenerPedidos);
+// Rutas específicas (deben ir primero para evitar conflictos con /:id)
+// Cliente - ver sus propios pedidos
+router.get("/mis-pedidos", protegerRuta, obtenerMisPedidos);
 
-// Admin / Empleado gestiona todos los pedidos
-router.get("/", protegerRuta, soloEmpleado, obtenerPedidos);
-router.get("/filtrar", protegerRuta, soloEmpleado, filtrarPedidos);
-router.put("/:id", protegerRuta, soloEmpleado, actualizarPedido);
-router.delete("/:id", protegerRuta, soloEmpleado, eliminarPedido);
+// Empleado - ver pedidos asignados
+router.get("/asignados", protegerRuta, soloEmpleado, obtenerPedidosEmpleado);
+
+// Admin - gestión completa de pedidos (deben ir al final)
+router.get("/", protegerRuta, soloAdmin, obtenerPedidos);
+router.post("/", protegerRuta, soloAdmin, crearPedido);
+router.put("/:id", protegerRuta, soloAdmin, actualizarPedido);
+router.patch("/:id/estado", protegerRuta, soloEmpleado, actualizarEstadoPedido);
+router.delete("/:id", protegerRuta, soloAdmin, eliminarPedido);
 
 export default router;
