@@ -51,7 +51,15 @@ adminSchema.methods.compararPassword = async function (passwordIngresado) {
   return await bcrypt.compare(passwordIngresado, this.password);
 };
 
-// ❌ ELIMINAMOS la línea 'const Admin = mongoose.model("Admin", adminSchema);' redundante
+adminSchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform: (_doc, ret) => {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.password;
+    return ret;
+  }
+});
 
-// 🚀 EXPORTAMOS EL MODELO ÚNICO
 export default mongoose.model("Admin", adminSchema);

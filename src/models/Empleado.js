@@ -50,6 +50,22 @@ const empleadoSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Formato de salida JSON: exponer 'id' y ocultar campos sensibles
+empleadoSchema.set('toJSON', {
+  virtuals: true,
+  versionKey: false,
+  transform: (_doc, ret) => {
+    ret.id = ret._id;
+    delete ret._id;
+    delete ret.password;
+    delete ret.verificacionToken;
+    delete ret.verificacionExpira;
+    delete ret.resetPasswordToken;
+    delete ret.resetPasswordExpira;
+    return ret;
+  }
+});
+
 // Hashear contraseña antes de guardar
 empleadoSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();

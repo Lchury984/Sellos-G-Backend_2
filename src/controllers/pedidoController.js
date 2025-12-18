@@ -173,6 +173,22 @@ export const actualizarEstadoPedido = async (req, res) => {
     pedido.estado = estado;
     await pedido.save();
 
+    // Crear notificación para el cliente sobre el cambio de estado
+    try {
+      const Notificacion = (await import('../models/Notificacion.js')).default;
+      await Notificacion.create({
+        titulo: 'Estado de pedido actualizado',
+        mensaje: `Tu pedido ${pedido._id.toString().slice(-8).toUpperCase()} ahora está: ${estado}`,
+        tipo: 'pedido',
+        destinatario: pedido.cliente,
+        destinatarioRol: 'cliente',
+        leida: false,
+        data: { pedidoId: pedido._id, estado }
+      });
+    } catch (e) {
+      console.error('No se pudo crear notificación de pedido:', e.message);
+    }
+
     const pedidoActualizado = await Pedido.findById(id)
       .populate("cliente", "nombre correo")
       .populate("empleadoAsignado", "nombre apellido")

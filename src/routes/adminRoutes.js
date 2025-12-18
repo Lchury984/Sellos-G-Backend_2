@@ -20,7 +20,7 @@ import { protegerRuta, soloAdmin } from "../middlewares/authMiddleware.js";
 const router = express.Router();
 
 // ADMINISTRADORES
-router.get("/", protegerRuta, soloAdmin, getAdmins);
+router.get("/", protegerRuta, getAdmins); // Cambiar: eliminar soloAdmin para que todos puedan listar admins para chat
 router.post("/", protegerRuta, soloAdmin, createAdmin);
 router.put("/:id", protegerRuta, soloAdmin, updateAdmin);
 router.delete("/:id", protegerRuta, soloAdmin, deleteAdmin);
@@ -28,7 +28,7 @@ router.post("/login", loginAdmin);
 router.patch("/me", protegerRuta, soloAdmin, updateAdminProfile);
 
 // GESTIÓN DE EMPLEADOS
-router.get("/empleados", protegerRuta, soloAdmin, listarEmpleados);
+router.get("/empleados", protegerRuta, listarEmpleados); // Cambiar: eliminar soloAdmin para que todos puedan listar empleados para chat
 router.post("/empleados", protegerRuta, soloAdmin, crearEmpleado);
 router.put("/empleados/:id", protegerRuta, soloAdmin, actualizarEmpleado);
 router.delete("/empleados/:id", protegerRuta, soloAdmin, eliminarEmpleado);

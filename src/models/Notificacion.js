@@ -17,6 +17,16 @@ const notificacionSchema = new mongoose.Schema(
       enum: ["mensaje", "pedido", "asignacion", "stock"],
       default: "stock"
     },
+    destinatario: {
+      type: mongoose.Schema.Types.ObjectId,
+      refPath: 'destinatarioRol',
+      default: null
+    },
+    destinatarioRol: {
+      type: String,
+      enum: ['administrador', 'empleado', 'cliente', null],
+      default: null
+    },
     leida: {
       type: Boolean,
       default: false

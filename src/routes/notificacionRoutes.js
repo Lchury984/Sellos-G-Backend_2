@@ -1,5 +1,5 @@
 import express from "express";
-import { protegerRuta, soloAdmin } from "../middlewares/authMiddleware.js";
+import { protegerRuta } from "../middlewares/authMiddleware.js";
 import {
   obtenerNotificaciones,
   obtenerNoLeidas,
@@ -10,10 +10,10 @@ import {
 
 const router = express.Router();
 
-router.get("/", protegerRuta, soloAdmin, obtenerNotificaciones);
-router.get("/no-leidas", protegerRuta, soloAdmin, obtenerNoLeidas);
-router.patch("/leer-todas", protegerRuta, soloAdmin, marcarTodasLeidas);
-router.patch("/:id/leer", protegerRuta, soloAdmin, marcarLeida);
-router.delete("/:id", protegerRuta, soloAdmin, eliminarNotificacion);
+router.get("/", protegerRuta, obtenerNotificaciones);
+router.get("/no-leidas", protegerRuta, obtenerNoLeidas);
+router.patch("/leer-todas", protegerRuta, marcarTodasLeidas);
+router.patch("/:id/leer", protegerRuta, marcarLeida);
+router.delete("/:id", protegerRuta, eliminarNotificacion);
 
 export default router;

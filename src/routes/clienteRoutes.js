@@ -21,7 +21,7 @@ router.post("/register", registrarCliente);
 router.patch("/me", protegerRuta, soloCliente, actualizarPerfilCliente);
 
 // Ruta protegida para obtener todos los clientes
-router.get("/", protegerRuta, soloAdmin, obtenerClientes); // solo admin
+router.get("/", protegerRuta, obtenerClientes); // Cambiar: eliminar soloAdmin para que todos puedan listar clientes para chat
 
 // Rutas CRUD para clientes (solo admin)
 router.put("/:id", protegerRuta, soloAdmin, actualizarCliente);

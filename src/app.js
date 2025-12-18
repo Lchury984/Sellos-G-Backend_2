@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
 import adminRoutes from "./routes/adminRoutes.js";
 import productoRoutes from "./routes/productoRoutes.js";
 import pedidoRoutes from "./routes/pedidoRoutes.js";
@@ -9,6 +10,7 @@ import empleadoRoutes from "./routes/empleadoRoutes.js";
 import inventarioRoutes from "./routes/inventarioRoutes.js";
 import notificacionRoutes from "./routes/notificacionRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
 
 
 dotenv.config();
@@ -16,6 +18,9 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// Servir archivos subidos (chat media)
+app.use("/uploads", express.static(path.resolve("uploads")));
 
 // Rutas activas
 app.use("/api/admins", adminRoutes);
@@ -26,5 +31,6 @@ app.use("/api/empleados", empleadoRoutes);
 app.use("/api/inventario", inventarioRoutes);
 app.use("/api/notificaciones", notificacionRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/chat", chatRoutes);
 
 export default app;
