@@ -49,8 +49,8 @@ export const login = async (req, res) => {
       return res.status(404).json({ msg: "Usuario no encontrado" });
     }
 
-    // 5. VALIDACIÓN: verificar correo (excepto admin)
-    if (rol !== "administrador" && !usuario.verificado) {
+    // 5. VALIDACIÓN: verificar correo (excepto admin y empleados creados por admin)
+    if (rol === "cliente" && !usuario.verificado) {
       return res.status(401).json({
         msg: "Tu cuenta no ha sido verificada. Revisa tu correo electrónico.",
         necesitaVerificar: true

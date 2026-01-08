@@ -156,40 +156,30 @@ export const crearEmpleado = async (req, res) => {
     const token = crypto.randomBytes(32).toString('hex');
     const expiration = Date.now() + 3600000; // 1 hora
 
-    // Crear empleado no verificado; el correo de verificación será enviado
+    // Crear empleado y marcarlo como verificado (admin lo crea con acceso inmediato)
     const nuevoEmpleado = new Empleado({
       nombre,
       correo,
       password,
       edad: edad || null,
       rol: "empleado",
-      verificado: false,
-      verificacionToken: token,
-      verificacionExpira: expiration,
+      verificado: true,
+      verificacionToken: null,
+      verificacionExpira: null,
     });
 
     await nuevoEmpleado.save();
 
-    // Enviar correo de bienvenida/verificación (NO incluimos la contraseña por seguridad)
+    // Intentar enviar correo de bienvenida (no bloqueante - si falla, el empleado ya está creado y puede iniciar sesión)
     try {
       await sendEmployeeWelcomeEmail(correo, token, nombre);
     } catch (emailError) {
-      console.error('Error enviando correo de bienvenida:', emailError);
-      return res.status(201).json({
-        msg: 'Empleado creado, pero no se pudo enviar el correo de verificación. Revisar logs.',
-        empleado: {
-          id: nuevoEmpleado._id,
-          nombre: nuevoEmpleado.nombre,
-          correo: nuevoEmpleado.correo,
-          rol: nuevoEmpleado.rol,
-          edad: nuevoEmpleado.edad,
-          verificado: nuevoEmpleado.verificado,
-        }
-      });
+      // Log del error pero no bloquea la respuesta
+      console.warn('Advertencia: No se pudo enviar correo de bienvenida al empleado:', emailError.message);
     }
 
     res.status(201).json({
-      msg: "Empleado creado exitosamente; correo de verificación enviado",
+      msg: "Empleado creado exitosamente",
       empleado: {
         id: nuevoEmpleado._id,
         nombre: nuevoEmpleado.nombre,
