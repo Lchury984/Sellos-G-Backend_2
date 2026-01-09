@@ -2,6 +2,7 @@ import Pedido from "../models/Pedido.js";
 import Producto from "../models/Producto.js";
 import Cliente from "../models/Cliente.js";
 import Empleado from "../models/Empleado.js";
+import Notificacion from "../models/Notificacion.js";
 
 // Crear pedido (Admin)
 export const crearPedido = async (req, res) => {
@@ -61,6 +62,23 @@ export const crearPedido = async (req, res) => {
       .populate("empleadoAsignado", "nombre apellido")
       .populate("productos.producto", "nombre precioActual imagenUrl");
 
+    // Crear notificación si se asigna a un empleado
+    if (empleadoAsignado) {
+      try {
+        await Notificacion.create({
+          titulo: "Nuevo pedido asignado",
+          mensaje: `Se te ha asignado un nuevo pedido del cliente ${clienteExiste.nombre}. Pedido #${nuevoPedido._id.toString().slice(-8).toUpperCase()}`,
+          tipo: "asignacion",
+          destinatario: empleadoAsignado,
+          destinatarioRol: "empleado",
+          leida: false,
+          data: { pedidoId: nuevoPedido._id }
+        });
+      } catch (e) {
+        console.error("Error al crear notificación de asignación:", e.message);
+      }
+    }
+
     res.status(201).json(pedidoPoblado);
   } catch (error) {
     console.error("Error creando pedido:", error);
@@ -104,6 +122,12 @@ export const actualizarPedido = async (req, res) => {
     const { id } = req.params;
     const { cliente, empleadoAsignado, productos, estado, notaEmpleado } = req.body;
 
+    // Obtener el pedido original para comparar
+    const pedidoOriginal = await Pedido.findById(id);
+    if (!pedidoOriginal) {
+      return res.status(404).json({ msg: "Pedido no encontrado" });
+    }
+
     // Recalcular total si hay productos
     let updateData = { estado, notaEmpleado };
 
@@ -141,8 +165,24 @@ export const actualizarPedido = async (req, res) => {
       .populate("empleadoAsignado", "nombre apellido")
       .populate("productos.producto", "nombre precioActual imagenUrl");
 
-    if (!pedido) {
-      return res.status(404).json({ msg: "Pedido no encontrado" });
+    // Crear notificación si se asigna a un empleado (y no estaba asignado antes)
+    if (empleadoAsignado && (!pedidoOriginal.empleadoAsignado || pedidoOriginal.empleadoAsignado.toString() !== empleadoAsignado)) {
+      try {
+        const clienteData = await Cliente.findById(cliente || pedidoOriginal.cliente);
+        const nombreCliente = clienteData?.nombre || "Cliente";
+        
+        await Notificacion.create({
+          titulo: "Nuevo pedido asignado",
+          mensaje: `Se te ha asignado un nuevo pedido del cliente ${nombreCliente}. Pedido #${id.slice(-8).toUpperCase()}`,
+          tipo: "asignacion",
+          destinatario: empleadoAsignado,
+          destinatarioRol: "empleado",
+          leida: false,
+          data: { pedidoId: id }
+        });
+      } catch (e) {
+        console.error("Error al crear notificación de asignación:", e.message);
+      }
     }
 
     res.json(pedido);
