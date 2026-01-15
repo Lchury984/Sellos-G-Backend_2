@@ -11,6 +11,7 @@ import inventarioRoutes from "./routes/inventarioRoutes.js";
 import notificacionRoutes from "./routes/notificacionRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
+import companyRoutes from "./routes/companyRoutes.js";
 
 
 dotenv.config();
@@ -47,5 +48,6 @@ app.use("/api/inventario", inventarioRoutes);
 app.use("/api/notificaciones", notificacionRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/company", companyRoutes);
 
 export default app;
