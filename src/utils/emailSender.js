@@ -1,67 +1,15 @@
 // src/utils/emailSender.js
 
-import nodemailer from "nodemailer";
+import { Resend } from 'resend';
 import dotenv from "dotenv";
 dotenv.config();
 
-// Helper: create a transporter. Intenta Gmail (credenciales) y si falla hace fallback a Ethereal
-const createTransporter = async () => {
-    const hasCreds = process.env.EMAIL_USER && process.env.EMAIL_PASS;
+// Inicializar Resend con la API key
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-    // 1) Intentar con Gmail/SMTP real si hay credenciales
-    if (hasCreds) {
-        const useHost = process.env.EMAIL_HOST && process.env.EMAIL_PORT;
-        const transportConfig = useHost
-            ? {
-                host: process.env.EMAIL_HOST,
-                port: Number(process.env.EMAIL_PORT) || 465,
-                secure: true,
-                auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-                connectionTimeout: 15000,
-                greetingTimeout: 15000,
-            }
-            : {
-                service: "gmail",
-                auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-                connectionTimeout: 15000,
-                greetingTimeout: 15000,
-            };
-
-        const t = nodemailer.createTransport(transportConfig);
-        try {
-            await t.verify();
-            console.log('[EMAIL] SMTP conectado correctamente.');
-            return { transporter: t, isTest: false };
-        } catch (err) {
-            console.error('[EMAIL] Error verificando SMTP, se usará fallback a Ethereal:', err.message || err);
-            // continua al fallback
-        }
-    }
-
-    // 2) Fallback: cuenta de prueba (Ethereal) para al menos obtener URL de vista previa
-    try {
-        const testAccount = await nodemailer.createTestAccount();
-        const t = nodemailer.createTransport({
-            host: 'smtp.ethereal.email',
-            port: 587,
-            secure: false,
-            auth: { user: testAccount.user, pass: testAccount.pass },
-        });
-        console.log('[EMAIL] Usando cuenta de prueba (Ethereal). Las URLs de vista previa se devolverán en las respuestas.');
-        return { transporter: t, isTest: true, testAccount };
-    } catch (err) {
-        console.error('[EMAIL] No se pudo crear cuenta de prueba para nodemailer:', err.message || err);
-        throw err;
-    }
-};
-
-export const sendVerificationEmail = async (correo, token, nombre = 'Usuario') => { // ✅ Mejorado: nombre por defecto
-    // console.log("DEBUG USER:", process.env.EMAIL_USER);
-    // console.log("DEBUG PASS:", process.env.EMAIL_PASS);
-
+export const sendVerificationEmail = async (correo, token, nombre = 'Usuario') => {
     const verificationLink = `${process.env.FRONTEND_URL}/verificar-email?token=${token}`;
 
-    // Usamos el mismo estilo HTML (simplificado para incluir el CSS en línea)
     const htmlContent = `
 <!DOCTYPE html>
 <html lang="es">
@@ -97,26 +45,24 @@ export const sendVerificationEmail = async (correo, token, nombre = 'Usuario') =
 </html>
 `;
 
-
     try {
-        const { transporter, isTest } = await createTransporter();
-        const info = await transporter.sendMail({
-            from: '"Sellos G (No Responder)" <no-reply@sellos-g.com>',
-            to: correo,
-            subject: "¡Verifica tu cuenta de Sellos-G!",
+        const { data, error } = await resend.emails.send({
+            from: 'Sellos-G <onboarding@resend.dev>',
+            to: [correo],
+            subject: '¡Verifica tu cuenta de Sellos-G!',
             html: htmlContent,
         });
 
-        console.log("Correo de verificación enviado:", info.messageId);
-        if (isTest) {
-            const preview = nodemailer.getTestMessageUrl(info);
-            console.log('[EMAIL] Preview URL:', preview);
-            return { info, preview };
+        if (error) {
+            console.error('[EMAIL] Error enviando con Resend:', error);
+            throw new Error(`Error al enviar correo: ${error.message}`);
         }
-        return { info };
+
+        console.log('[EMAIL] Correo de verificación enviado exitosamente:', data.id);
+        return { success: true, id: data.id };
     } catch (error) {
-        console.error("Error enviando correo de verificación:", error);
-        throw new Error("Fallo al enviar el correo de verificación.");
+        console.error('[EMAIL] Error enviando correo de verificación:', error.message);
+        throw new Error('Fallo al enviar el correo de verificación.');
     }
 };
 
@@ -168,23 +114,23 @@ export const sendPasswordResetEmail = async (correo, token, nombre = 'Usuario') 
     `;
 
     try {
-        const { transporter, isTest } = await createTransporter();
-        const info = await transporter.sendMail({
-            from: '"Sellos G (No Responder)" <no-reply@sellos-g.com>',
-            to: correo,
-            subject: "Restablecimiento de Contraseña - Sellos-G",
+        const { data, error } = await resend.emails.send({
+            from: 'Sellos-G <onboarding@resend.dev>',
+            to: [correo],
+            subject: 'Restablecimiento de Contraseña - Sellos-G',
             html: htmlContent,
         });
-        console.log(`[EMAIL] Correo de restablecimiento enviado a ${correo}. ID: ${info.messageId}`);
-        if (isTest) {
-            const preview = nodemailer.getTestMessageUrl(info);
-            console.log('[EMAIL] Preview URL:', preview);
-            return { info, preview };
+
+        if (error) {
+            console.error('[EMAIL] Error enviando correo de restablecimiento:', error);
+            throw new Error('Fallo al enviar el correo de restablecimiento.');
         }
-        return { info };
+
+        console.log(`[EMAIL] Correo de restablecimiento enviado a ${correo}. ID: ${data.id}`);
+        return { success: true, id: data.id };
     } catch (error) {
-        console.error("Error enviando correo de restablecimiento:", error);
-        throw new Error("Fallo al enviar el correo de restablecimiento.");
+        console.error('[EMAIL] Error enviando correo de restablecimiento:', error);
+        throw error;
     }
 };
 
@@ -239,23 +185,22 @@ export const sendEmployeeWelcomeEmail = async (correo, token, nombre = 'Empleado
 `;
 
     try {
-        const { transporter, isTest } = await createTransporter();
-        const info = await transporter.sendMail({
-            from: '"Sellos G (No Responder)" <no-reply@sellos-g.com>',
-            to: correo,
+        const { data, error } = await resend.emails.send({
+            from: 'Sellos-G <onboarding@resend.dev>',
+            to: [correo],
             subject: 'Bienvenido a Sellos-G — Verifica tu cuenta',
             html: htmlContent,
         });
 
-        console.log('Correo de bienvenida enviado:', info.messageId);
-        if (isTest) {
-            const preview = nodemailer.getTestMessageUrl(info);
-            console.log('[EMAIL] Preview URL:', preview);
-            return { info, preview };
+        if (error) {
+            console.error('[EMAIL] Error enviando correo de bienvenida:', error);
+            throw new Error('Fallo al enviar el correo de bienvenida.');
         }
-        return { info };
+
+        console.log(`[EMAIL] Correo de bienvenida enviado a ${correo}. ID: ${data.id}`);
+        return { success: true, id: data.id };
     } catch (error) {
-        console.error('Error enviando correo de bienvenida:', error);
-        throw new Error('Fallo al enviar el correo de bienvenida.');
+        console.error('[EMAIL] Error enviando correo de bienvenida:', error);
+        throw error;
     }
 };

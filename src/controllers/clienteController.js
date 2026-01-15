@@ -30,16 +30,36 @@ export const registrarCliente = async (req, res) => {
 
     await cliente.save();
 
-    // 4. Enviar correo
-    await sendVerificationEmail(correo, token, nombre);
-
-    res.status(201).json({
-      message: 'Registro exitoso. Revisa tu correo para verificar tu cuenta.'
-    });
+    // 4. Enviar correo de verificación
+    try {
+      await sendVerificationEmail(correo, token, nombre);
+      console.log(`[REGISTRO] Usuario creado y correo enviado a ${correo}`);
+      
+      res.status(201).json({
+        message: 'Registro exitoso. Revisa tu correo para verificar tu cuenta.'
+      });
+    } catch (emailError) {
+      console.error('[REGISTRO] Error enviando email:', emailError);
+      
+      // En desarrollo, devolver el token para debug
+      if (process.env.NODE_ENV === 'development') {
+        const verificationLink = `${process.env.FRONTEND_URL}/verificar-email?token=${token}`;
+        return res.status(201).json({
+          message: 'Registro exitoso pero el correo no pudo enviarse. Token de verificación incluido.',
+          debug: { token, verificationLink }
+        });
+      }
+      
+      // En producción, fallar si no se puede enviar el correo
+      await Cliente.findByIdAndDelete(cliente._id);
+      return res.status(500).json({ 
+        message: 'Error al enviar el correo de verificación. Por favor, intenta registrarte nuevamente.'
+      });
+    }
 
   } catch (error) {
     console.error("Error en registrarCliente:", error);
-    res.status(500).json({ message: "Error al registrar cliente", error });
+    res.status(500).json({ message: "Error al registrar cliente", error: error.message });
   }
 };
 
