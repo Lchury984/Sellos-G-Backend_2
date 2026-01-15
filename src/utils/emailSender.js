@@ -4,23 +4,41 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 dotenv.config();
 
-// Helper: create a transporter. If SMTP creds are not provided, create a test account (Ethereal)
+// Helper: create a transporter. Intenta Gmail (credenciales) y si falla hace fallback a Ethereal
 const createTransporter = async () => {
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        const t = nodemailer.createTransport({
-            service: "gmail",
-            auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-        });
+    const hasCreds = process.env.EMAIL_USER && process.env.EMAIL_PASS;
+
+    // 1) Intentar con Gmail/SMTP real si hay credenciales
+    if (hasCreds) {
+        const useHost = process.env.EMAIL_HOST && process.env.EMAIL_PORT;
+        const transportConfig = useHost
+            ? {
+                host: process.env.EMAIL_HOST,
+                port: Number(process.env.EMAIL_PORT) || 465,
+                secure: true,
+                auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+                connectionTimeout: 15000,
+                greetingTimeout: 15000,
+            }
+            : {
+                service: "gmail",
+                auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+                connectionTimeout: 15000,
+                greetingTimeout: 15000,
+            };
+
+        const t = nodemailer.createTransport(transportConfig);
         try {
             await t.verify();
             console.log('[EMAIL] SMTP conectado correctamente.');
+            return { transporter: t, isTest: false };
         } catch (err) {
-            console.error('[EMAIL] Error verificando SMTP:', err.message || err);
+            console.error('[EMAIL] Error verificando SMTP, se usará fallback a Ethereal:', err.message || err);
+            // continua al fallback
         }
-        return { transporter: t, isTest: false };
     }
 
-    // No hay credenciales: crear cuenta de prueba (Ethereal)
+    // 2) Fallback: cuenta de prueba (Ethereal) para al menos obtener URL de vista previa
     try {
         const testAccount = await nodemailer.createTestAccount();
         const t = nodemailer.createTransport({
@@ -29,7 +47,7 @@ const createTransporter = async () => {
             secure: false,
             auth: { user: testAccount.user, pass: testAccount.pass },
         });
-        console.log('[EMAIL] Usando cuenta de prueba (Ethereal). Las URLs de vista previa se devolverán en las respuestas en desarrollo.');
+        console.log('[EMAIL] Usando cuenta de prueba (Ethereal). Las URLs de vista previa se devolverán en las respuestas.');
         return { transporter: t, isTest: true, testAccount };
     } catch (err) {
         console.error('[EMAIL] No se pudo crear cuenta de prueba para nodemailer:', err.message || err);
