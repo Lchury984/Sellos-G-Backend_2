@@ -16,7 +16,20 @@ import chatRoutes from "./routes/chatRoutes.js";
 dotenv.config();
 const app = express();
 
-app.use(cors());
+// Configurar CORS para producción
+const allowedOrigins = [
+  'https://sellos-g-frontend-k62m.vercel.app',
+  'http://localhost:5173', // para desarrollo local
+  'http://localhost:3000'  // alternativa para desarrollo
+];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
 // Servir archivos subidos (chat media)
