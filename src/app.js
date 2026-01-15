@@ -30,7 +30,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json());
+// Aumentar límite para payloads con imágenes en base64 (productos)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Servir archivos subidos (chat media)
 app.use("/uploads", express.static(path.resolve("uploads")));
