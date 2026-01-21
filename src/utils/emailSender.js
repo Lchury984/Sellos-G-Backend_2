@@ -200,6 +200,3 @@ export const sendEmployeeWelcomeEmail = async (correo, token, nombre = 'Empleado
         throw error;
     }
 };
-        throw error;
-    }
-};
