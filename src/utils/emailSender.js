@@ -131,8 +131,6 @@ export const sendPasswordResetEmail = async (correo, token, nombre = 'Usuario') 
         throw error;
     }
 };
-    }
-};
 
 /**
  * Envía un correo de bienvenida para empleados creados por un administrador.
