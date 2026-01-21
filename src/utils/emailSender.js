@@ -1,16 +1,22 @@
 // src/utils/emailSender.js
 
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import dotenv from "dotenv";
 dotenv.config();
 
-// Validar que la API key esté configurada
-if (!process.env.RESEND_API_KEY) {
-  console.error('⚠️ WARNING: RESEND_API_KEY no está configurada. Verifica tus variables de entorno.');
-}
+// Configurar transporte de Gmail
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD
+  }
+});
 
-// Inicializar Resend con la API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Validar que las credenciales estén configuradas
+if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+  console.error('⚠️ WARNING: GMAIL_USER o GMAIL_APP_PASSWORD no están configurados. Verifica tus variables de entorno.');
+}
 
 export const sendVerificationEmail = async (correo, token, nombre = 'Usuario') => {
     const verificationLink = `${process.env.FRONTEND_URL}/verificar-email?token=${token}`;
@@ -51,20 +57,15 @@ export const sendVerificationEmail = async (correo, token, nombre = 'Usuario') =
 `;
 
     try {
-        const { data, error } = await resend.emails.send({
-            from: 'Sellos-G <onboarding@resend.dev>',
-            to: [correo],
+        const info = await transporter.sendMail({
+            from: `"Sellos-G" <${process.env.GMAIL_USER}>`,
+            to: correo,
             subject: '¡Verifica tu cuenta de Sellos-G!',
             html: htmlContent,
         });
 
-        if (error) {
-            console.error('[EMAIL] Error enviando con Resend:', error);
-            throw new Error(`Error al enviar correo: ${error.message}`);
-        }
-
-        console.log('[EMAIL] Correo de verificación enviado exitosamente:', data.id);
-        return { success: true, id: data.id };
+        console.log('[EMAIL] Correo de verificación enviado exitosamente:', info.messageId);
+        return { success: true, id: info.messageId };
     } catch (error) {
         console.error('[EMAIL] Error enviando correo de verificación:', error.message);
         throw new Error('Fallo al enviar el correo de verificación.');
@@ -77,11 +78,10 @@ export const sendVerificationEmail = async (correo, token, nombre = 'Usuario') =
  * @param {string} token - Token de recuperación generado.
  * @param {string} nombre - Nombre del usuario.
  */
-export const sendPasswordResetEmail = async (correo, token, nombre = 'Usuario') => { // ✅ Mejorado: nombre por defecto
+export const sendPasswordResetEmail = async (correo, token, nombre = 'Usuario') => {
     // El enlace debe apuntar a la página de restablecimiento del frontend
     const resetLink = `${process.env.FRONTEND_URL}/reset-password/${token}`;
 
-    // ✅ Mejorado: Usamos el mismo diseño HTML para consistencia
     const htmlContent = `
 <!DOCTYPE html>
 <html lang="es">
@@ -119,22 +119,17 @@ export const sendPasswordResetEmail = async (correo, token, nombre = 'Usuario') 
     `;
 
     try {
-        const { data, error } = await resend.emails.send({
-            from: 'Sellos-G <onboarding@resend.dev>',
-            to: [correo],
+        const info = await transporter.sendMail({
+            from: `"Sellos-G" <${process.env.GMAIL_USER}>`,
+            to: correo,
             subject: 'Restablecimiento de Contraseña - Sellos-G',
             html: htmlContent,
         });
 
-        if (error) {
-            console.error('[EMAIL] Error enviando correo de restablecimiento:', error);
-            throw new Error('Fallo al enviar el correo de restablecimiento.');
-        }
-
-        console.log(`[EMAIL] Correo de restablecimiento enviado a ${correo}. ID: ${data.id}`);
-        return { success: true, id: data.id };
+        console.log(`[EMAIL] Correo de restablecimiento enviado a ${correo}. ID: ${info.messageId}`);
+        return { success: true, id: info.messageId };
     } catch (error) {
-        console.error('[EMAIL] Error enviando correo de restablecimiento:', error);
+        console.error('[EMAIL] Error enviando correo de restablecimiento:', error.message);
         throw error;
     }
 };
@@ -190,22 +185,17 @@ export const sendEmployeeWelcomeEmail = async (correo, token, nombre = 'Empleado
 `;
 
     try {
-        const { data, error } = await resend.emails.send({
-            from: 'Sellos-G <onboarding@resend.dev>',
-            to: [correo],
+        const info = await transporter.sendMail({
+            from: `"Sellos-G" <${process.env.GMAIL_USER}>`,
+            to: correo,
             subject: 'Bienvenido a Sellos-G — Verifica tu cuenta',
             html: htmlContent,
         });
 
-        if (error) {
-            console.error('[EMAIL] Error enviando correo de bienvenida:', error);
-            throw new Error('Fallo al enviar el correo de bienvenida.');
-        }
-
-        console.log(`[EMAIL] Correo de bienvenida enviado a ${correo}. ID: ${data.id}`);
-        return { success: true, id: data.id };
+        console.log(`[EMAIL] Correo de bienvenida enviado a ${correo}. ID: ${info.messageId}`);
+        return { success: true, id: info.messageId };
     } catch (error) {
-        console.error('[EMAIL] Error enviando correo de bienvenida:', error);
+        console.error('[EMAIL] Error enviando correo de bienvenida:', error.message);
         throw error;
     }
 };
