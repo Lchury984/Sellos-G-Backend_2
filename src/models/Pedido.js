@@ -11,6 +11,30 @@ const pedidoSchema = new mongoose.Schema({
     ref: "Empleado",
     default: null
   },
+  // Nuevos campos para pedido personalizado
+  tipoPedido: {
+    type: String,
+    enum: ["productos", "personalizado"], // "productos" = pedido normal con productos, "personalizado" = solicitud de trabajo
+    default: "productos"
+  },
+  tipoTrabajo: {
+    type: String,
+    enum: ["diseño", "impresion", "sellos", "personalizado", "otro"],
+    default: null
+  },
+  prioridad: {
+    type: String,
+    enum: ["urgente", "normal", "baja"],
+    default: "normal"
+  },
+  descripcion: {
+    type: String,
+    default: ""
+  },
+  archivoReferencia: {
+    type: String, // URL o ruta del archivo
+    default: null
+  },
   productos: [{
     producto: {
       type: mongoose.Schema.Types.ObjectId,
@@ -33,7 +57,7 @@ const pedidoSchema = new mongoose.Schema({
   }],
   total: {
     type: Number,
-    required: true
+    default: 0
   },
   estado: {
     type: String,

@@ -3,6 +3,9 @@ import Producto from "../models/Producto.js";
 import Cliente from "../models/Cliente.js";
 import Empleado from "../models/Empleado.js";
 import Notificacion from "../models/Notificacion.js";
+import Conversacion from "../models/Conversacion.js";
+import Mensaje from "../models/Mensaje.js";
+import Admin from "../models/Admin.js";
 
 // Crear pedido (Admin)
 export const crearPedido = async (req, res) => {
@@ -271,3 +274,120 @@ export const obtenerMisPedidos = async (req, res) => {
   }
 };
 
+// Crear pedido personalizado (Cliente)
+export const crearPedidoPersonalizado = async (req, res) => {
+  try {
+    const clienteId = req.usuario.id;
+    const { tipoTrabajo, prioridad, descripcion } = req.body;
+
+    // Validar campos requeridos
+    if (!tipoTrabajo || !prioridad || !descripcion) {
+      return res.status(400).json({ msg: "Todos los campos son requeridos" });
+    }
+
+    // Obtener archivo si existe
+    let archivoReferencia = null;
+    if (req.file) {
+      // La ruta del archivo subido por multer
+      archivoReferencia = `/uploads/pedidos/${req.file.filename}`;
+    }
+
+    // Crear el pedido personalizado
+    const nuevoPedido = new Pedido({
+      cliente: clienteId,
+      tipoPedido: "personalizado",
+      tipoTrabajo,
+      prioridad,
+      descripcion,
+      archivoReferencia,
+      total: 0,
+      estado: "pendiente"
+    });
+
+    await nuevoPedido.save();
+
+    // Poblar datos del pedido
+    const pedidoPoblado = await Pedido.findById(nuevoPedido._id)
+      .populate("cliente", "nombre correo");
+
+    // Obtener cliente info
+    const cliente = await Cliente.findById(clienteId);
+
+    // Buscar todos los administradores
+    const admins = await Admin.find();
+
+    // Crear mensaje de chat para cada administrador
+    for (const admin of admins) {
+      try {
+        // Buscar o crear conversación entre cliente y admin
+        let conversacion = await Conversacion.findOne({
+          participantes: { $all: [clienteId, admin._id] }
+        });
+
+        if (!conversacion) {
+          conversacion = new Conversacion({
+            participantes: [clienteId, admin._id],
+            rolesParticipantes: ["cliente", "administrador"]
+          });
+          await conversacion.save();
+        }
+
+        // Crear mensaje con detalles del pedido
+        const prioridadEmoji = {
+          urgente: "🔴",
+          normal: "🟡",
+          baja: "🟢"
+        };
+
+        let mensajeTexto = `📋 *NUEVO PEDIDO PERSONALIZADO*\n\n`;
+        mensajeTexto += `👤 Cliente: ${cliente.nombre}\n`;
+        mensajeTexto += `📦 Tipo de trabajo: ${tipoTrabajo.toUpperCase()}\n`;
+        mensajeTexto += `${prioridadEmoji[prioridad]} Prioridad: ${prioridad.toUpperCase()}\n\n`;
+        mensajeTexto += `📝 Descripción:\n${descripcion}\n\n`;
+        mensajeTexto += `🆔 Pedido #${nuevoPedido._id.toString().slice(-8).toUpperCase()}`;
+
+        const nuevoMensaje = new Mensaje({
+          conversacion: conversacion._id,
+          remitente: clienteId,
+          remitenteRol: "cliente",
+          contenido: mensajeTexto,
+          tipoArchivo: req.file ? req.file.mimetype.split('/')[0] : null,
+          rutaArchivo: archivoReferencia,
+          leido: false
+        });
+
+        await nuevoMensaje.save();
+
+        // Actualizar conversación
+        conversacion.ultimoMensaje = nuevoMensaje._id;
+        conversacion.fechaUltimoMensaje = new Date();
+        await conversacion.save();
+
+        // Crear notificación para el admin
+        await Notificacion.create({
+          titulo: "Nuevo pedido personalizado",
+          mensaje: `${cliente.nombre} ha realizado un pedido de ${tipoTrabajo} con prioridad ${prioridad}`,
+          tipo: "pedido",
+          destinatario: admin._id,
+          destinatarioRol: "administrador",
+          leida: false,
+          data: { 
+            pedidoId: nuevoPedido._id,
+            conversacionId: conversacion._id,
+            clienteId: clienteId
+          }
+        });
+      } catch (e) {
+        console.error(`Error creando mensaje/notificación para admin ${admin._id}:`, e.message);
+      }
+    }
+
+    res.status(201).json({
+      msg: "Pedido personalizado creado exitosamente",
+      pedido: pedidoPoblado
+    });
+  } catch (error) {
+    console.error("Error creando pedido personalizado:", error);
+    res.status(500).json({ msg: error.message });
+  }
+};
