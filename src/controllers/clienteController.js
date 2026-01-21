@@ -39,7 +39,16 @@ export const registrarCliente = async (req, res) => {
         message: 'Registro exitoso. Revisa tu correo para verificar tu cuenta.'
       });
     } catch (emailError) {
-      console.error('[REGISTRO] Error enviando email:', emailError);
+      console.error('[REGISTRO] Error enviando email:', emailError.message);
+      
+      // Si no hay API key de Resend, dar instrucción clara
+      if (!process.env.RESEND_API_KEY) {
+        await Cliente.findByIdAndDelete(cliente._id);
+        return res.status(500).json({ 
+          message: 'Error de configuración: RESEND_API_KEY no está definida en el servidor.',
+          error: 'Contacta al administrador del sistema.'
+        });
+      }
       
       // En desarrollo, devolver el token para debug
       if (process.env.NODE_ENV === 'development') {

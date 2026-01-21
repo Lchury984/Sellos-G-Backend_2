@@ -4,6 +4,11 @@ import { Resend } from 'resend';
 import dotenv from "dotenv";
 dotenv.config();
 
+// Validar que la API key esté configurada
+if (!process.env.RESEND_API_KEY) {
+  console.error('⚠️ WARNING: RESEND_API_KEY no está configurada. Verifica tus variables de entorno.');
+}
+
 // Inicializar Resend con la API key
 const resend = new Resend(process.env.RESEND_API_KEY);
 
