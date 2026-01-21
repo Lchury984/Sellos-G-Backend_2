@@ -306,69 +306,78 @@ export const crearPedidoPersonalizado = async (req, res) => {
 
     await nuevoPedido.save();
 
-    // Poblar datos del pedido
-    const pedidoPoblado = await Pedido.findById(nuevoPedido._id)
-      .populate("cliente", "nombre correo");
-
     // Obtener cliente info
     const cliente = await Cliente.findById(clienteId);
 
     // Buscar todos los administradores
     const admins = await Admin.find();
 
-    // Crear mensaje de chat para cada administrador
-    for (const admin of admins) {
+    if (admins.length === 0) {
+      return res.status(500).json({ msg: "No hay administradores disponibles" });
+    }
+
+    // Usar el primer administrador para la conversación
+    const admin = admins[0];
+
+    // Buscar o crear conversación entre cliente y admin
+    let conversacion = await Conversacion.findOne({
+      'participantes.usuario': { $all: [clienteId, admin._id] }
+    });
+
+    if (!conversacion) {
+      conversacion = new Conversacion({
+        participantes: [
+          { usuario: clienteId, rol: 'cliente', nombre: cliente.nombre },
+          { usuario: admin._id, rol: 'administrador', nombre: admin.nombre }
+        ],
+        ultimoMensaje: '',
+        actualizadoEn: new Date()
+      });
+      await conversacion.save();
+    }
+
+    // Crear mensaje con detalles del pedido
+    const prioridadEmoji = {
+      urgente: "🔴",
+      normal: "🟡",
+      baja: "🟢"
+    };
+
+    let mensajeTexto = `📋 NUEVO PEDIDO PERSONALIZADO\n\n`;
+    mensajeTexto += `👤 Cliente: ${cliente.nombre}\n`;
+    mensajeTexto += `📦 Tipo de trabajo: ${tipoTrabajo.toUpperCase()}\n`;
+    mensajeTexto += `${prioridadEmoji[prioridad]} Prioridad: ${prioridad.toUpperCase()}\n\n`;
+    mensajeTexto += `📝 Descripción:\n${descripcion}\n\n`;
+    mensajeTexto += `🆔 Pedido #${nuevoPedido._id.toString().slice(-8).toUpperCase()}`;
+
+    const nuevoMensaje = new Mensaje({
+      conversacion: conversacion._id,
+      remitente: clienteId,
+      destinatario: admin._id,
+      contenido: mensajeTexto,
+      archivo: archivoReferencia ? {
+        url: archivoReferencia,
+        nombre: req.file.originalname,
+        tipo: req.file.mimetype
+      } : null,
+      leido: false
+    });
+
+    await nuevoMensaje.save();
+
+    // Actualizar conversación
+    conversacion.ultimoMensaje = mensajeTexto.substring(0, 100);
+    conversacion.actualizadoEn = new Date();
+    await conversacion.save();
+
+    // Crear notificación para todos los admins
+    for (const adminUsuario of admins) {
       try {
-        // Buscar o crear conversación entre cliente y admin
-        let conversacion = await Conversacion.findOne({
-          participantes: { $all: [clienteId, admin._id] }
-        });
-
-        if (!conversacion) {
-          conversacion = new Conversacion({
-            participantes: [clienteId, admin._id],
-            rolesParticipantes: ["cliente", "administrador"]
-          });
-          await conversacion.save();
-        }
-
-        // Crear mensaje con detalles del pedido
-        const prioridadEmoji = {
-          urgente: "🔴",
-          normal: "🟡",
-          baja: "🟢"
-        };
-
-        let mensajeTexto = `📋 *NUEVO PEDIDO PERSONALIZADO*\n\n`;
-        mensajeTexto += `👤 Cliente: ${cliente.nombre}\n`;
-        mensajeTexto += `📦 Tipo de trabajo: ${tipoTrabajo.toUpperCase()}\n`;
-        mensajeTexto += `${prioridadEmoji[prioridad]} Prioridad: ${prioridad.toUpperCase()}\n\n`;
-        mensajeTexto += `📝 Descripción:\n${descripcion}\n\n`;
-        mensajeTexto += `🆔 Pedido #${nuevoPedido._id.toString().slice(-8).toUpperCase()}`;
-
-        const nuevoMensaje = new Mensaje({
-          conversacion: conversacion._id,
-          remitente: clienteId,
-          remitenteRol: "cliente",
-          contenido: mensajeTexto,
-          tipoArchivo: req.file ? req.file.mimetype.split('/')[0] : null,
-          rutaArchivo: archivoReferencia,
-          leido: false
-        });
-
-        await nuevoMensaje.save();
-
-        // Actualizar conversación
-        conversacion.ultimoMensaje = nuevoMensaje._id;
-        conversacion.fechaUltimoMensaje = new Date();
-        await conversacion.save();
-
-        // Crear notificación para el admin
         await Notificacion.create({
           titulo: "Nuevo pedido personalizado",
           mensaje: `${cliente.nombre} ha realizado un pedido de ${tipoTrabajo} con prioridad ${prioridad}`,
           tipo: "pedido",
-          destinatario: admin._id,
+          destinatario: adminUsuario._id,
           destinatarioRol: "administrador",
           leida: false,
           data: { 
@@ -378,13 +387,20 @@ export const crearPedidoPersonalizado = async (req, res) => {
           }
         });
       } catch (e) {
-        console.error(`Error creando mensaje/notificación para admin ${admin._id}:`, e.message);
+        console.error(`Error creando notificación para admin ${adminUsuario._id}:`, e.message);
       }
     }
 
+    // Retornar el mensaje creado para que se muestre en el chat
+    const mensajePoblado = await Mensaje.findById(nuevoMensaje._id)
+      .populate('remitente', 'nombre correo')
+      .populate('destinatario', 'nombre correo');
+
     res.status(201).json({
-      msg: "Pedido personalizado creado exitosamente",
-      pedido: pedidoPoblado
+      msg: "Pedido personalizado creado y enviado al chat del administrador",
+      pedido: nuevoPedido,
+      mensaje: mensajePoblado,
+      conversacionId: conversacion._id
     });
   } catch (error) {
     console.error("Error creando pedido personalizado:", error);
