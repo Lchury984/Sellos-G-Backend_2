@@ -1,22 +1,18 @@
 // src/utils/emailSender.js
 
-import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 import dotenv from "dotenv";
 dotenv.config();
 
-// Configurar transporte de Gmail
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD
-  }
-});
-
-// Validar que las credenciales estén configuradas
-if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-  console.error('⚠️ WARNING: GMAIL_USER o GMAIL_APP_PASSWORD no están configurados. Verifica tus variables de entorno.');
+// Configurar SendGrid API Key
+if (!process.env.SENDGRID_API_KEY) {
+  console.error('⚠️ WARNING: SENDGRID_API_KEY no está configurada. Verifica tus variables de entorno.');
+} else {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
+
+// Email remitente (debe estar verificado en SendGrid)
+const FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'noreply@sellosg.com';
 
 export const sendVerificationEmail = async (correo, token, nombre = 'Usuario') => {
     const verificationLink = `${process.env.FRONTEND_URL}/verificar-email?token=${token}`;
@@ -56,18 +52,19 @@ export const sendVerificationEmail = async (correo, token, nombre = 'Usuario') =
 </html>
 `;
 
-    try {
-        const info = await transporter.sendMail({
-            from: `"Sellos-G" <${process.env.GMAIL_USER}>`,
-            to: correo,
-            subject: '¡Verifica tu cuenta de Sellos-G!',
-            html: htmlContent,
-        });
+    const msg = {
+        to: correo,
+        from: FROM_EMAIL,
+        subject: '¡Verifica tu cuenta de Sellos-G!',
+        html: htmlContent,
+    };
 
-        console.log('[EMAIL] Correo de verificación enviado exitosamente:', info.messageId);
-        return { success: true, id: info.messageId };
+    try {
+        const response = await sgMail.send(msg);
+        console.log('[EMAIL] Correo de verificación enviado exitosamente a:', correo);
+        return { success: true, id: response[0].headers['x-message-id'] };
     } catch (error) {
-        console.error('[EMAIL] Error enviando correo de verificación:', error.message);
+        console.error('[EMAIL] Error enviando correo de verificación:', error.response?.body || error.message);
         throw new Error('Fallo al enviar el correo de verificación.');
     }
 };
@@ -119,18 +116,21 @@ export const sendPasswordResetEmail = async (correo, token, nombre = 'Usuario') 
     `;
 
     try {
-        const info = await transporter.sendMail({
-            from: `"Sellos-G" <${process.env.GMAIL_USER}>`,
+        const msg = {
             to: correo,
+            from: FROM_EMAIL,
             subject: 'Restablecimiento de Contraseña - Sellos-G',
             html: htmlContent,
-        });
+        };
 
-        console.log(`[EMAIL] Correo de restablecimiento enviado a ${correo}. ID: ${info.messageId}`);
-        return { success: true, id: info.messageId };
+        const response = await sgMail.send(msg);
+        console.log(`[EMAIL] Correo de restablecimiento enviado a ${correo}`);
+        return { success: true, id: response[0].headers['x-message-id'] };
     } catch (error) {
-        console.error('[EMAIL] Error enviando correo de restablecimiento:', error.message);
+        console.error('[EMAIL] Error enviando correo de restablecimiento:', error.response?.body || error.message);
         throw error;
+    }
+};
     }
 };
 
@@ -185,17 +185,21 @@ export const sendEmployeeWelcomeEmail = async (correo, token, nombre = 'Empleado
 `;
 
     try {
-        const info = await transporter.sendMail({
-            from: `"Sellos-G" <${process.env.GMAIL_USER}>`,
+        const msg = {
             to: correo,
+            from: FROM_EMAIL,
             subject: 'Bienvenido a Sellos-G — Verifica tu cuenta',
             html: htmlContent,
-        });
+        };
 
-        console.log(`[EMAIL] Correo de bienvenida enviado a ${correo}. ID: ${info.messageId}`);
-        return { success: true, id: info.messageId };
+        const response = await sgMail.send(msg);
+        console.log(`[EMAIL] Correo de bienvenida enviado a ${correo}`);
+        return { success: true, id: response[0].headers['x-message-id'] };
     } catch (error) {
-        console.error('[EMAIL] Error enviando correo de bienvenida:', error.message);
+        console.error('[EMAIL] Error enviando correo de bienvenida:', error.response?.body || error.message);
+        throw error;
+    }
+};
         throw error;
     }
 };
