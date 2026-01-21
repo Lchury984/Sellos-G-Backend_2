@@ -350,17 +350,20 @@ export const crearPedidoPersonalizado = async (req, res) => {
     mensajeTexto += `📝 Descripción:\n${descripcion}\n\n`;
     mensajeTexto += `🆔 Pedido #${nuevoPedido._id.toString().slice(-8).toUpperCase()}`;
 
+    // Determinar tipo de mensaje según si hay archivo
+    let tipoMensaje = "texto";
+    if (archivoReferencia) {
+      tipoMensaje = "media";
+    }
+
     const nuevoMensaje = new Mensaje({
       conversacion: conversacion._id,
       remitente: clienteId,
-      destinatario: admin._id,
-      contenido: mensajeTexto,
-      archivo: archivoReferencia ? {
-        url: archivoReferencia,
-        nombre: req.file.originalname,
-        tipo: req.file.mimetype
-      } : null,
-      leido: false
+      remitenteNombre: cliente.nombre,
+      remitenteRol: "cliente",
+      mensaje: mensajeTexto,
+      tipo: tipoMensaje,
+      mediaUrl: archivoReferencia || ""
     });
 
     await nuevoMensaje.save();
@@ -393,8 +396,7 @@ export const crearPedidoPersonalizado = async (req, res) => {
 
     // Retornar el mensaje creado para que se muestre en el chat
     const mensajePoblado = await Mensaje.findById(nuevoMensaje._id)
-      .populate('remitente', 'nombre correo')
-      .populate('destinatario', 'nombre correo');
+      .populate('remitente', 'nombre correo');
 
     res.status(201).json({
       msg: "Pedido personalizado creado y enviado al chat del administrador",
