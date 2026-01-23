@@ -18,18 +18,24 @@ dotenv.config();
 const app = express();
 
 // Configurar CORS para producción
+// Lista de orígenes permitidos (referencia) y modo permisivo temporal
 const allowedOrigins = [
+  'https://sellos-g.vercel.app',
   'https://sellos-g-frontend-k62m.vercel.app',
-  'http://localhost:5173', // para desarrollo local
-  'http://localhost:3000'  // alternativa para desarrollo
+  'http://localhost:5173',
+  'http://localhost:3000'
 ];
 
+// Modo permisivo para desbloquear CORS rápidamente
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (_origin, callback) => callback(null, true),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Preflight
+app.options('*', cors({ origin: (_o, cb) => cb(null, true), credentials: true }));
 
 // Aumentar límite para payloads con imágenes en base64 (productos)
 app.use(express.json({ limit: '10mb' }));
