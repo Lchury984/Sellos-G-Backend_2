@@ -18,17 +18,21 @@ dotenv.config();
 const app = express();
 
 // Configurar CORS para producción
-// Lista de orígenes permitidos (referencia) y modo permisivo temporal
+// Lista explícita de orígenes permitidos
 const allowedOrigins = [
   'https://sellos-g.vercel.app',
-  'https://sellos-g-frontend-k62m.vercel.app',
+  'https://sellos-g-frontend-k62m.vercel.app', // mientras existan redirecciones
   'http://localhost:5173',
   'http://localhost:3000'
 ];
 
-// Modo permisivo para desbloquear CORS rápidamente
+// CORS estricto usando la lista
 app.use(cors({
-  origin: (_origin, callback) => callback(null, true),
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // permitir requests sin origin (curl/health)
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
