@@ -34,9 +34,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Preflight
-app.options('*', cors({ origin: (_o, cb) => cb(null, true), credentials: true }));
-
 // Aumentar límite para payloads con imágenes en base64 (productos)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
